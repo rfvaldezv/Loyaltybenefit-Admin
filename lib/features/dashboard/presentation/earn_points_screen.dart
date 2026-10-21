@@ -5,11 +5,13 @@ import '../../../core/network/api_client.dart';
 class EarnPointsScreen extends ConsumerStatefulWidget {
   final String customerName;
   final String guestId;
+  final String tenantId;
 
   const EarnPointsScreen({
     super.key, 
     required this.customerName,
     required this.guestId,
+    required this.tenantId,
   });
 
   @override
@@ -34,14 +36,13 @@ class _EarnPointsScreenState extends ConsumerState<EarnPointsScreen> {
       final api = ref.read(apiClientProvider);
       
       final response = await api.createStay(
-        tenantId: "6890d5bd-2eb6-4803-9d0b-2af4868b5ccc", // Concept Hotel
+        tenantId: widget.tenantId, 
         guestId: widget.guestId,
         stayId: GuidGenerator.generate(),
         amount: amount,
       );
 
       if (mounted) {
-        // Leemos la respuesta del backend
         final data = response.data;
         final puntos = data['puntosGanados'] ?? data['PuntosGanados'] ?? 0;
         final mensaje = data['mensaje'] ?? data['Mensaje'] ?? 'Éxito';
@@ -53,7 +54,7 @@ class _EarnPointsScreenState extends ConsumerState<EarnPointsScreen> {
             duration: const Duration(seconds: 4),
           ),
         );
-        Navigator.pop(context); // Volver a la pantalla anterior
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {

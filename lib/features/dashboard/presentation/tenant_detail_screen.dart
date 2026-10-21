@@ -54,7 +54,11 @@ class TenantDetailScreen extends ConsumerWidget {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CustomerFormScreen()),
+            MaterialPageRoute(
+              builder: (_) => CustomerFormScreen(
+                tenantId: tenant.id, // 👈 Pasamos el ID real del hotel
+              ),
+            ),
           );
         },
         icon: const Icon(Icons.person_add),

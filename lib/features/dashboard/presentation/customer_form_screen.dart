@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
-import 'earn_points_screen.dart'; // 👈 Importamos la pantalla de puntos
+import 'earn_points_screen.dart';
 
 class CustomerFormScreen extends ConsumerStatefulWidget {
-  const CustomerFormScreen({super.key});
+  final String tenantId; // 👈 Recibimos el ID del hotel
+
+  const CustomerFormScreen({super.key, required this.tenantId});
 
   @override
   ConsumerState<CustomerFormScreen> createState() => _CustomerFormScreenState();
@@ -27,7 +29,6 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     try {
       final api = ref.read(apiClientProvider);
       
-      // 1. Guardamos el cliente en el backend
       await api.createCustomer(
         name: _nameController.text,
         email: _emailController.text,
@@ -41,14 +42,14 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           ),
         );
         
-        // 2. 🚀 REDIRIGIMOS A LA PANTALLA DE MONTO (ESTANCIA)
+        // Redirigir a la pantalla de puntos pasando el tenantId
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EarnPointsScreen(
               customerName: _nameController.text,
-              // Generamos un ID de prueba para que el backend no falle
-              guestId: '00000000-0000-0000-0000-000000000001', 
+              guestId: '00000000-0000-0000-0000-000000000001',
+              tenantId: widget.tenantId, // 👈 Pasamos el ID del hotel
             ),
           ),
         );
