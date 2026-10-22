@@ -67,6 +67,18 @@ class ApiClient {
       'amount': amount,
     });
   }
+
+  Future<Response> createRule({
+    required String tenantId,
+    required double amountThreshold,
+    required int points,
+  }) {
+    return _dio.post('/api/rules', data: {
+      'tenantId': tenantId,
+      'amountThreshold': amountThreshold,
+      'points': points,
+    });
+  }
 }
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());

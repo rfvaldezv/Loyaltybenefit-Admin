@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/tenant_model.dart';
 import 'customer_form_screen.dart'; // 👈 Importamos la nueva pantalla
+import 'rule_config_screen.dart';
 
 class TenantDetailScreen extends ConsumerWidget {
   final TenantModel tenant;
@@ -33,6 +34,22 @@ class TenantDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RuleConfigScreen(
+                      tenantId: tenant.id,
+                      tenantName: tenant.name,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.settings),
+              label: const Text('Configurar Regla de Puntos'),
             ),
             const SizedBox(height: 24),
             Text('Sucursales y Clientes', style: Theme.of(context).textTheme.titleMedium),
