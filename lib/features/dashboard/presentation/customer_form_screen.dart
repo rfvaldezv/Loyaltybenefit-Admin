@@ -4,7 +4,7 @@ import '../../../core/network/api_client.dart';
 import 'earn_points_screen.dart';
 
 class CustomerFormScreen extends ConsumerStatefulWidget {
-  final String tenantId; // 👈 Recibimos el ID del hotel
+  final String tenantId;
 
   const CustomerFormScreen({super.key, required this.tenantId});
 
@@ -29,10 +29,14 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     try {
       final api = ref.read(apiClientProvider);
       
-      await api.createCustomer(
+      // 👇 Llamamos a la nueva función de tu ApiClient (con el tenantId)
+      final response = await api.createCustomer(
         name: _nameController.text,
         email: _emailController.text,
+        tenantId: widget.tenantId, 
       );
+
+      final nuevoGuestId = response.data['id'] as String;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -42,14 +46,13 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           ),
         );
         
-        // Redirigir a la pantalla de puntos pasando el tenantId
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EarnPointsScreen(
               customerName: _nameController.text,
-              guestId: '00000000-0000-0000-0000-000000000001',
-              tenantId: widget.tenantId, // 👈 Pasamos el ID del hotel
+              guestId: nuevoGuestId,
+              tenantId: widget.tenantId,
             ),
           ),
         );

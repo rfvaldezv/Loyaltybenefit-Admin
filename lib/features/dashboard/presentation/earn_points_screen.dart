@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
 class EarnPointsScreen extends ConsumerStatefulWidget {
@@ -35,10 +36,10 @@ class _EarnPointsScreenState extends ConsumerState<EarnPointsScreen> {
     try {
       final api = ref.read(apiClientProvider);
       
+      // 👈 Llamamos sin el stayId porque el backend lo genera
       final response = await api.createStay(
         tenantId: widget.tenantId, 
-        guestId: widget.guestId,
-        stayId: GuidGenerator.generate(),
+        guestId: widget.guestId, 
         amount: amount,
       );
 
@@ -58,10 +59,27 @@ class _EarnPointsScreenState extends ConsumerState<EarnPointsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = 'Error desconocido';
+        
+        // 🔥 Extraemos el mensaje exacto del servidor
+        if (e is DioException) {
+          final responseData = e.response?.data;
+          if (responseData is String) {
+            errorMsg = responseData; // Si es un texto plano
+          } else if (responseData != null) {
+            errorMsg = responseData.toString(); // Si es un JSON
+          } else {
+            errorMsg = e.message ?? 'Error de red';
+          }
+        } else {
+          errorMsg = e.toString();
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Error: $e'),
-            backgroundColor: Colors.orange,
+            content: Text('⚠️ Servidor dice: $errorMsg'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
           ),
         );
       }
@@ -109,14 +127,5 @@ class _EarnPointsScreenState extends ConsumerState<EarnPointsScreen> {
         ),
       ),
     );
-  }
-}
-
-class GuidGenerator {
-  static String generate() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAllMapped(RegExp(r'[xy]'), (match) {
-      final r = (DateTime.now().microsecondsSinceEpoch % 16).toRadixString(16);
-      return match.group(0) == 'x' ? r : (int.parse(r, radix: 16) & 0x3 | 0x8).toRadixString(16);
-    });
   }
 }
