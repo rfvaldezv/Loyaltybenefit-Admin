@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 
 final apiClientProvider = Provider((ref) => ApiClient());
 
@@ -11,10 +12,6 @@ class ApiClient {
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
   ));
-
-  // ==========================================
-  // MÉTODOS ORIGINALES
-  // ==========================================
 
   Future<Response> post(String path, {dynamic data}) async {
     return _dio.post(path, data: data);
@@ -41,7 +38,7 @@ class ApiClient {
     required double amountThreshold,
     required int points,
   }) async {
-    return _dio.post('/api/rules', 
+    return _dio.post('/api/rules',
       data: {
         'tenantId': tenantId,
         'amountThreshold': amountThreshold,
@@ -50,25 +47,19 @@ class ApiClient {
     );
   }
 
-  // ==========================================
-  // NUEVOS MÉTODOS (CON EL HEADER X-TENANT-ID)
-  // ==========================================
-
-  // Obtener la lista de clientes
   Future<Response> getCustomers(String tenantId) async {
-    return _dio.get('/api/customers', 
+    return _dio.get('/api/customers',
       options: Options(
         headers: {
-          'X-Tenant-Id': tenantId, // 👈 ESTO ES LO QUE FALTA
+          'X-Tenant-Id': tenantId,
         }
       )
     );
   }
 
-  // Registrar un cliente
   Future<Response> createCustomer({
-    required String name, 
-    required String email, 
+    required String name,
+    required String email,
     required String tenantId,
     String? phone
   }) async {
@@ -76,7 +67,7 @@ class ApiClient {
     final firstName = nameParts.isNotEmpty ? nameParts.first : 'Huésped';
     final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
 
-    return _dio.post('/api/customers', 
+    return _dio.post('/api/customers',
       data: {
         'firstName': firstName,
         'lastName': lastName,
@@ -91,13 +82,12 @@ class ApiClient {
     );
   }
 
-  // Sumar puntos / Crear estancia
   Future<Response> createStay({
     required String tenantId,
     required String guestId,
     required double amount,
   }) async {
-    return _dio.post('/api/loyalty/earn', 
+    return _dio.post('/api/loyalty/earn',
       data: {
         'guestId': guestId,
         'amount': amount,
@@ -122,6 +112,28 @@ class ApiClient {
           'X-Tenant-Id': tenantId,
         }
       )
+    );
+  }
+
+  Future<Response> uploadLogo(String tenantId, String filePath, String fileName) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+    });
+
+    return _dio.post('/api/tenants/$tenantId/upload-logo', 
+      data: formData,
+      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+    );
+  }
+
+  Future<Response> uploadLogoBytes(String tenantId, Uint8List bytes, String fileName) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: fileName),
+    });
+
+    return _dio.post('/api/tenants/$tenantId/upload-logo', 
+      data: formData,
+      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
     );
   }
 }

@@ -1,127 +1,93 @@
+import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/tenant_model.dart';
-import 'customer_form_screen.dart';
-import 'rule_config_screen.dart';
-import 'customers_list_screen.dart'; // 👈 Importamos la nueva lista
-import 'guest_portal_screen.dart';  // 👈 Importamos el portal
+import '../../../core/network/api_client.dart';
 
-class TenantDetailScreen extends ConsumerWidget {
-  final TenantModel tenant;
-
-  const TenantDetailScreen({super.key, required this.tenant});
+class TenantDetailScreen extends ConsumerStatefulWidget {
+  final String tenantId;
+  const TenantDetailScreen({super.key, required this.tenantId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TenantDetailScreen> createState() => _TenantDetailScreenState();
+}
+
+class _TenantDetailScreenState extends ConsumerState<TenantDetailScreen> {
+  bool _isUploading = false;
+
+  Future<void> _subirLogo() async {
+    // 1. Abrir el selector de archivos nativo del navegador
+    final html.FileUploadInputElement input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+
+    // 2. Esperar a que el usuario seleccione un archivo
+    await input.onChange.first;
+    if (input.files!.isEmpty) return;
+
+    final file = input.files!.first;
+    final reader = html.FileReader();
+
+    // 3. Leer el archivo
+    reader.readAsArrayBuffer(file);
+    await reader.onLoad.first;
+
+    final bytes = reader.result as Uint8List;
+    final fileName = file.name;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final api = ref.read(apiClientProvider);
+      // Subimos los bytes usando el método que creamos en el ApiClient
+      await api.uploadLogoBytes(widget.tenantId, bytes, fileName);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Logo subido exitosamente'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(tenant.name),
+        title: const Text('Detalles del Hotel'),
         backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        actions: [
-          // 👇 BOTÓN DEL PORTAL DEL HUÉSPED EN LA PARTE SUPERIOR
-          IconButton(
-            icon: const Icon(Icons.card_giftcard),
-            tooltip: 'Portal del Huésped',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GuestPortalScreen(tenantId: tenant.id),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // TARJETA DE INFORMACIÓN DEL HOTEL
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Información de la Empresa', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 16),
-                    _buildInfoRow('Nombre:', tenant.name),
-                    _buildInfoRow('Código:', tenant.code),
-                    _buildInfoRow('ID:', tenant.id),
-                  ],
-                ),
-              ),
+            const Text(
+              'Configuración del Hotel',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            
-            // BOTÓN PARA CONFIGURAR REGLAS
+            const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RuleConfigScreen(
-                      tenantId: tenant.id,
-                      tenantName: tenant.name,
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.settings),
-              label: const Text('Configurar Regla de Puntos'),
+              onPressed: _isUploading ? null : _subirLogo,
+              icon: _isUploading 
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                  : const Icon(Icons.upload_file),
+              label: Text(_isUploading ? 'Subiendo...' : 'Subir Logo del Hotel'),
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.indigo.shade50,
-                foregroundColor: Colors.indigo,
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            Text('Lista de Clientes', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            
-            // 👇 AQUÍ REEMPLAZAMOS EL TEXTO DE "PRÓXIMAMENTE" POR LA LISTA REAL
-            Expanded(
-              child: CustomersListScreen(tenantId: tenant.id),
             ),
           ],
         ),
-      ),
-      // BOTÓN FLOTANTE PARA AGREGAR CLIENTE
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CustomerFormScreen(
-                tenantId: tenant.id,
-              ),
-            ),
-          );
-        },
-        icon: const Icon(Icons.person_add),
-        label: const Text('Nuevo Cliente'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          Expanded(child: Text(value)),
-        ],
       ),
     );
   }
