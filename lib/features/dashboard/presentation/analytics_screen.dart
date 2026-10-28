@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
@@ -21,20 +22,30 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarPropiedades();
-    _cargarDatos();
+    _cargarTodo();
+  }
+
+  // Carga propiedades y datos al mismo tiempo
+  Future<void> _cargarTodo() async {
+    await Future.wait([
+      _cargarPropiedades(),
+      _cargarDatos(),
+    ]);
   }
 
   Future<void> _cargarPropiedades() async {
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.getProperties();
-      setState(() {
-        _properties = response.data;
-        _isLoadingProperties = false;
-      });
+      if (mounted) {
+        setState(() {
+          // Nos aseguramos de que solo mostramos las activas
+          _properties = List.from(response.data).where((p) => p['isActive'] == true).toList();
+          _isLoadingProperties = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoadingProperties = false);
+      if (mounted) setState(() => _isLoadingProperties = false);
     }
   }
 
@@ -47,11 +58,21 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.getAnalytics(propertyId: _selectedPropertyId);
-      setState(() => _data = response.data);
+      if (mounted) {
+        setState(() => _data = response.data);
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        if (e.response?.statusCode == 401) {
+          setState(() => _error = 'Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.');
+        } else {
+          setState(() => _error = 'Error de conexión con el servidor.');
+        }
+      }
     } catch (e) {
-      setState(() => _error = 'Error al cargar datos: $e');
+      if (mounted) setState(() => _error = 'Ocurrió un error inesperado.');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -67,7 +88,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _cargarDatos,
+            tooltip: 'Refrescar datos',
+            onPressed: _cargarTodo, // Recarga todo (propiedades y KPIs)
           )
         ],
       ),

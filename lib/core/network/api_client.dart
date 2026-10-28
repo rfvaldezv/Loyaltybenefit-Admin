@@ -6,21 +6,15 @@ final apiClientProvider = Provider((ref) => ApiClient());
 
 class ApiClient {
   final Dio _dio;
+  String? _userRole;
+  String? _userPropertyId;
+  String? _userEmail;
 
   ApiClient() : _dio = Dio(BaseOptions(
-    //baseUrl: 'https://api.loyaltybenefit.com',
-    baseUrl: 'http://localhost:5265',
+    baseUrl: 'http://localhost:5265', // Cambiar a https://api.loyaltybenefit.com en prod
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
   ));
-
-  Future<Response> post(String path, {dynamic data}) async {
-    return _dio.post(path, data: data);
-  }
-
-  Future<Response> get(String path) async {
-    return _dio.get(path);
-  }
 
   void setToken(String token) {
     _dio.options.headers['Authorization'] = 'Bearer $token';
@@ -28,34 +22,41 @@ class ApiClient {
 
   void clearToken() {
     _dio.options.headers.remove('Authorization');
+    _userRole = null;
+    _userPropertyId = null;
+    _userEmail = null;
   }
 
-  Future<Response> getTenants() async {
-    return _dio.get('/api/tenants');
+  void setSessionData(String role, String? propertyId, String email) {
+    _userRole = role;
+    _userPropertyId = propertyId;
+    _userEmail = email;
   }
 
-  Future<Response> createRule({
-    required String tenantId,
-    required double amountThreshold,
-    required int points,
-  }) async {
-    return _dio.post('/api/rules',
-      data: {
-        'tenantId': tenantId,
-        'amountThreshold': amountThreshold,
-        'points': points,
-      }
+  String? get userRole => _userRole;
+  String? get userPropertyId => _userPropertyId;
+  String? get userEmail => _userEmail;
+
+  Future<Response> post(String path, {dynamic data}) async => _dio.post(path, data: data);
+  Future<Response> get(String path) async => _dio.get(path);
+
+  // TENANTS
+  Future<Response> getTenants() => _dio.get('/api/tenants');
+  Future<Response> getTenantById(String id) => _dio.get('/api/tenants/$id');
+
+  Future<Response> uploadLogoBytes(String tenantId, Uint8List bytes, String fileName) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: fileName),
+    });
+    return _dio.post('/api/tenants/$tenantId/upload-logo', 
+      data: formData,
+      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
     );
   }
 
+  // CLIENTES
   Future<Response> getCustomers(String tenantId) async {
-    return _dio.get('/api/customers',
-      options: Options(
-        headers: {
-          'X-Tenant-Id': tenantId,
-        }
-      )
-    );
+    return _dio.get('/api/customers', options: Options(headers: {'X-Tenant-Id': tenantId}));
   }
 
   Future<Response> createCustomer({
@@ -75,77 +76,70 @@ class ApiClient {
         'email': email,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
       },
-      options: Options(
-        headers: {
-          'X-Tenant-Id': tenantId,
-        }
-      )
+      options: Options(headers: {'X-Tenant-Id': tenantId})
     );
   }
 
+  Future<Response> adjustPoints(String guestId, String tenantId, int points, String reason) {
+    return _dio.post('/api/customers/$guestId/adjust-points', 
+      data: {'points': points, 'reason': reason},
+      options: Options(headers: {'X-Tenant-Id': tenantId})
+    );
+  }
+
+  // ESTANCIAS Y REGLAS
   Future<Response> createStay({
     required String tenantId,
     required String guestId,
     required double amount,
   }) async {
     return _dio.post('/api/loyalty/earn',
-      data: {
-        'guestId': guestId,
-        'amount': amount,
-      },
-      options: Options(
-        headers: {
-          'X-Tenant-Id': tenantId,
-        }
-      )
+      data: {'guestId': guestId, 'amount': amount},
+      options: Options(headers: {'X-Tenant-Id': tenantId})
     );
   }
 
-  Future<Response> adjustPoints(String guestId, String tenantId, int points, String reason) {
-    return _dio.post(
-      '/api/customers/$guestId/adjust-points',
-      data: {
-        'points': points,
-        'reason': reason,
-      },
-      options: Options(
-        headers: {
-          'X-Tenant-Id': tenantId,
-        }
-      )
+  Future<Response> createRule({
+    required String tenantId,
+    required double amountThreshold,
+    required int points,
+  }) async {
+    return _dio.post('/api/rules',
+      data: {'tenantId': tenantId, 'amountThreshold': amountThreshold, 'points': points}
     );
   }
 
-  Future<Response> uploadLogo(String tenantId, String filePath, String fileName) async {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+  // PROPIEDADES
+  Future<Response> getProperties() => _dio.get('/api/properties');
+  
+  Future<Response> createProperty({required String name, required String code}) {
+    return _dio.post('/api/properties', data: {'name': name, 'code': code});
+  }
+
+  Future<Response> updateProperty({required String id, required String name, required String code}) {
+    return _dio.put('/api/properties/$id', data: {'name': name, 'code': code});
+  }
+
+  Future<Response> deleteProperty(String id) => _dio.delete('/api/properties/$id');
+
+  // USUARIOS
+  Future<Response> getUsers() => _dio.get('/api/users');
+  
+  Future<Response> createUser({required String email, required String password, required String role}) {
+    return _dio.post('/api/users', data: {'email': email, 'password': password, 'role': role});
+  }
+
+  Future<Response> updateUser({required String id, required String role, required bool isActive, String? password}) {
+    return _dio.put('/api/users/$id', data: {
+      'role': role,
+      'isActive': isActive,
+      if (password != null) 'password': password,
     });
-
-    return _dio.post('/api/tenants/$tenantId/upload-logo', 
-      data: formData,
-      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
-    );
   }
 
-  Future<Response> uploadLogoBytes(String tenantId, Uint8List bytes, String fileName) async {
-    final formData = FormData.fromMap({
-      'file': MultipartFile.fromBytes(bytes, filename: fileName),
-    });
+  Future<Response> deleteUser(String id) => _dio.delete('/api/users/$id');
 
-    return _dio.post('/api/tenants/$tenantId/upload-logo', 
-      data: formData,
-      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
-    );
-  }
-
-  Future<Response> getCorporateAnalytics() {
-    return _dio.get('/api/analytics/corporate');
-  }
-
-  Future<Response> getProperties() {
-    return _dio.get('/api/portal/properties');
-  }
-
+  // ANALÍTICA
   Future<Response> getAnalytics({String? propertyId}) {
     return _dio.get('/api/analytics/corporate', queryParameters: {
       if (propertyId != null) 'propertyId': propertyId,

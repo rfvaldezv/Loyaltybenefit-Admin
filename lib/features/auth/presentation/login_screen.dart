@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
-import 'package:dio/dio.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,13 +15,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _obscurePassword = true; // <-- El estado del ojito
+  bool _obscurePassword = true;
 
   Future<void> _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor llena todos los campos')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Llena todos los campos')));
       return;
     }
 
@@ -29,7 +27,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final api = ref.read(apiClientProvider);
-      
       final response = await api.post('/api/auth/login', data: {
         'email': _emailController.text.trim(),
         'password': _passwordController.text.trim(),
@@ -37,39 +34,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (response.statusCode == 200) {
         final token = response.data['token'];
-        if (token != null) api.setToken(token);
+        final role = response.data['role'];
+        final propertyId = response.data['propertyId'];
+        final email = response.data['email'];
+
+        if (token != null) {
+          api.setToken(token);
+          api.setSessionData(role, propertyId, email); // Guardamos todo
+        }
 
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => const DashboardScreen(tenantId: '00000000-0000-0000-0000-000000000000'), 
-            ),
+            MaterialPageRoute(builder: (_) => const DashboardScreen(tenantId: '00000000-0000-0000-0000-000000000000')),
           );
         }
       }
     } on DioException catch (e) {
-      // ATRAPAMOS EL ERROR DE DIO
-      String mensaje = 'Ocurrió un error inesperado.';
-      
-      if (e.response?.statusCode == 401) {
-        mensaje = 'Usuario o contraseña incorrectos. Por favor, verifica tus datos.';
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
-        mensaje = 'No se pudo conectar con el servidor. Revisa tu conexión.';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(mensaje), backgroundColor: Colors.redAccent),
-        );
-      }
+      String mensaje = 'Error inesperado.';
+      if (e.response?.statusCode == 401) mensaje = 'Usuario o contraseña incorrectos.';
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje), backgroundColor: Colors.redAccent));
     } catch (e) {
-      // Cualquier otro error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -85,23 +71,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Container(
             constraints: const BoxConstraints(maxWidth: 400),
             padding: const EdgeInsets.all(32.0),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(16)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.admin_panel_settings, size: 80, color: Colors.indigoAccent),
                 const SizedBox(height: 24),
-                const Text(
-                  'Loyalty Benefit',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const Text(
-                  'Panel de Administración',
-                  style: TextStyle(fontSize: 16, color: Colors.white54),
-                ),
+                const Text('Loyalty Benefit', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                const Text('Panel de Administración', style: TextStyle(fontSize: 16, color: Colors.white54)),
                 const SizedBox(height: 32),
                 TextField(
                   controller: _emailController,
@@ -110,45 +87,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     labelText: 'Correo Electrónico',
                     labelStyle: const TextStyle(color: Colors.white54),
                     prefixIcon: const Icon(Icons.email, color: Colors.white54),
-                    filled: true,
-                    fillColor: const Color(0xFF0F172A),
+                    filled: true, fillColor: const Color(0xFF0F172A),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _passwordController,
-                  obscureText: _obscurePassword, // <-- Usa el ojito
+                  obscureText: _obscurePassword,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     labelStyle: const TextStyle(color: Colors.white54),
                     prefixIcon: const Icon(Icons.lock, color: Colors.white54),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.white54,
-                      ),
+                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white54),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    filled: true,
-                    fillColor: const Color(0xFF0F172A),
+                    filled: true, fillColor: const Color(0xFF0F172A),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
-                  width: double.infinity,
-                  height: 50,
+                  width: double.infinity, height: 50,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigoAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.indigoAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
