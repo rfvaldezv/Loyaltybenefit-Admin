@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
+import 'package:dio/dio.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -47,10 +48,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
         }
       }
-    } catch (e) {
+    } on DioException catch (e) {
+      // ATRAPAMOS EL ERROR DE DIO
+      String mensaje = 'Ocurrió un error inesperado.';
+      
+      if (e.response?.statusCode == 401) {
+        mensaje = 'Usuario o contraseña incorrectos. Por favor, verifica tus datos.';
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        mensaje = 'No se pudo conectar con el servidor. Revisa tu conexión.';
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(mensaje), backgroundColor: Colors.redAccent),
+        );
+      }
+    } catch (e) {
+      // Cualquier otro error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
