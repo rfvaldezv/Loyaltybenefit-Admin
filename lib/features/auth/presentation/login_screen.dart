@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
-import '../../dashboard/presentation/tenant_detail_screen.dart';
+import '../../dashboard/presentation/dashboard_screen.dart'; // <-- IMPORT DEL DASHBOARD
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -28,28 +28,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final api = ref.read(apiClientProvider);
       
-      // Hacemos login a la API (Ajusta la ruta si es diferente)
       final response = await api.post('/api/auth/login', data: {
-        'email': _emailController.text,
-        'password': _passwordController.text,
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text.trim(),
       });
 
       if (response.statusCode == 200) {
-        // Guardamos el token si es necesario
         final token = response.data['token'];
         if (token != null) api.setToken(token);
 
-        // Navegamos al detalle del tenant.
-        // ⚠️ NOTA: Aquí estamos usando un ID fijo para que compile. 
-        // Si tu API devuelve el ID del usuario, cámbialo por response.data['tenantId'] o similar.
-        const tenantIdTemporal = 'D8D6CB00-2600-4A83-9C4E-02F76065210D'; // Cambia esto por el GUID real o el del response
-        
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              // AQUÍ ESTÁ LA LÍNEA QUE DABA ERROR, YA BIEN CERRADA
-              builder: (_) => const TenantDetailScreen(tenantId: tenantIdTemporal),
+              // AQUÍ ESTÁ LA MAGIA: Vamos al Dashboard
+              builder: (_) => const DashboardScreen(tenantId: '00000000-0000-0000-0000-000000000000'), 
             ),
           );
         }
@@ -68,7 +61,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Fondo oscuro
+      backgroundColor: const Color(0xFF0F172A),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),

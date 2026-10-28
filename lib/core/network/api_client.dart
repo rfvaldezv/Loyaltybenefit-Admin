@@ -8,7 +8,7 @@ class ApiClient {
   final Dio _dio;
 
   ApiClient() : _dio = Dio(BaseOptions(
-    baseUrl: 'http://localhost:5265',
+    baseUrl: 'https://api.loyaltybenefit.com',
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
   ));
@@ -135,5 +135,9 @@ class ApiClient {
       data: formData,
       options: Options(headers: {'Content-Type': 'multipart/form-data'}),
     );
+  }
+
+  Future<Response> getCorporateAnalytics() {
+    return _dio.get('/api/analytics/corporate');
   }
 }

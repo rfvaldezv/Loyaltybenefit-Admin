@@ -1,102 +1,116 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/network/api_client.dart';
-import 'guest_portal_screen.dart';
+import 'analytics_screen.dart';
+import 'customers_list_screen.dart';
+import 'tenant_detail_screen.dart';
 
-class CustomersListScreen extends ConsumerStatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   final String tenantId;
-  const CustomersListScreen({super.key, required this.tenantId});
+  const DashboardScreen({super.key, required this.tenantId});
 
   @override
-  ConsumerState<CustomersListScreen> createState() => _CustomersListScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
-  bool _isLoading = true;
-  List<dynamic> _clientes = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarClientes();
-  }
-
-  Future<void> _cargarClientes() async {
-    setState(() => _isLoading = true);
-    try {
-      final api = ref.read(apiClientProvider);
-      final response = await api.get('/api/customers');
-      
-      if (mounted) {
-        setState(() {
-          _clientes = response.data;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar clientes: $e')),
-        );
-      }
-    }
-  }
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  int _selectedIndex = 0; // 0 = Analytics, 1 = Clientes, 2 = Detalles
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Directorio de Clientes'),
-        backgroundColor: Colors.indigo,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.card_giftcard),
-            tooltip: 'Portal del Huésped',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GuestPortalScreen(tenantId: widget.tenantId),
+      backgroundColor: const Color(0xFF0F172A), // Fondo oscuro
+      body: Row(
+        children: [
+          // --- SIDEBAR (Menú Lateral) ---
+          Container(
+            width: 250,
+            color: const Color(0xFF1E293B),
+            child: Column(
+              children: [
+                const SizedBox(height: 32),
+                // Logo / Título
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.card_giftcard, color: Colors.indigoAccent, size: 32),
+                    SizedBox(width: 12),
+                    Text(
+                      'Loyalty Admin',
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _cargarClientes,
-          )
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _clientes.isEmpty
-              ? const Center(
-                  child: Text('No hay clientes registrados aún.', style: TextStyle(color: Colors.grey, fontSize: 18)),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _clientes.length,
-                  itemBuilder: (context, index) {
-                    final cliente = _clientes[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.indigo.withValues(alpha: 0.1),
-                          child: Text(
-                            cliente['firstName']?.substring(0, 1).toUpperCase() ?? '?',
-                            style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        title: Text('${cliente['firstName']} ${cliente['lastName']}'),
-                        subtitle: Text(cliente['email']),
-                        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                      ),
-                    );
+                const SizedBox(height: 48),
+                
+                // Opciones del menú
+                _buildMenuItem(
+                  icon: Icons.analytics,
+                  title: 'Dashboard Corporativo',
+                  index: 0,
+                ),
+                _buildMenuItem(
+                  icon: Icons.people,
+                  title: 'Directorio de Clientes',
+                  index: 1,
+                ),
+                _buildMenuItem(
+                  icon: Icons.settings,
+                  title: 'Configuración Hotel',
+                  index: 2,
+                ),
+                
+                const Spacer(),
+                // Botón de Salir
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.redAccent),
+                  title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () {
+                    Navigator.of(context).pushReplacementNamed('/login'); // Ajusta según tu enrutamiento
                   },
                 ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+
+          // --- ÁREA DE CONTENIDO PRINCIPAL ---
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                const AnalyticsScreen(), // La pantalla que creamos antes
+                CustomersListScreen(tenantId: widget.tenantId), // Lista de clientes
+                TenantDetailScreen(tenantId: widget.tenantId), // Detalles del hotel
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({required IconData icon, required String title, required int index}) {
+    final isSelected = _selectedIndex == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      child: ListTile(
+        leading: Icon(icon, color: isSelected ? Colors.indigoAccent : Colors.white54),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white54,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        selected: isSelected,
+        selectedTileColor: Colors.indigoAccent.withValues(alpha: 0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
     );
   }
 }
