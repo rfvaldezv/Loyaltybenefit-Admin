@@ -8,7 +8,8 @@ class ApiClient {
   final Dio _dio;
 
   ApiClient() : _dio = Dio(BaseOptions(
-    baseUrl: 'https://api.loyaltybenefit.com',
+    //baseUrl: 'https://api.loyaltybenefit.com',
+    baseUrl: 'http://localhost:5265',
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
   ));
@@ -139,5 +140,15 @@ class ApiClient {
 
   Future<Response> getCorporateAnalytics() {
     return _dio.get('/api/analytics/corporate');
+  }
+
+  Future<Response> getProperties() {
+    return _dio.get('/api/portal/properties');
+  }
+
+  Future<Response> getAnalytics({String? propertyId}) {
+    return _dio.get('/api/analytics/corporate', queryParameters: {
+      if (propertyId != null) 'propertyId': propertyId,
+    });
   }
 }

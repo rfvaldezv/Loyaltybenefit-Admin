@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
-import '../../dashboard/presentation/dashboard_screen.dart'; // <-- IMPORT DEL DASHBOARD
+import '../../dashboard/presentation/dashboard_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +14,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true; // <-- El estado del ojito
 
   Future<void> _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -41,7 +42,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              // AQUÍ ESTÁ LA MAGIA: Vamos al Dashboard
               builder: (_) => const DashboardScreen(tenantId: '00000000-0000-0000-0000-000000000000'), 
             ),
           );
@@ -101,12 +101,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword, // <-- Usa el ojito
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     labelStyle: const TextStyle(color: Colors.white54),
                     prefixIcon: const Icon(Icons.lock, color: Colors.white54),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.white54,
+                      ),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
                     filled: true,
                     fillColor: const Color(0xFF0F172A),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),

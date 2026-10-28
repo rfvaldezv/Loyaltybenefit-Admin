@@ -65,7 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   leading: const Icon(Icons.logout, color: Colors.redAccent),
                   title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.redAccent)),
                   onTap: () {
-                    Navigator.of(context).pushReplacementNamed('/login'); // Ajusta según tu enrutamiento
+                    Navigator.of(context).pushReplacementNamed('/'); // Ajusta según tu enrutamiento
                   },
                 ),
                 const SizedBox(height: 24),
@@ -78,9 +78,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: IndexedStack(
               index: _selectedIndex,
               children: [
-                const AnalyticsScreen(), // La pantalla que creamos antes
-                CustomersListScreen(tenantId: widget.tenantId), // Lista de clientes
-                TenantDetailScreen(tenantId: widget.tenantId), // Detalles del hotel
+                const AnalyticsScreen(), 
+                CustomersListScreen(tenantId: widget.tenantId), 
+                TenantDetailScreen(tenantId: widget.tenantId), 
               ],
             ),
           ),
@@ -93,23 +93,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final isSelected = _selectedIndex == index;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: ListTile(
-        leading: Icon(icon, color: isSelected ? Colors.indigoAccent : Colors.white54),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white54,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      child: Material( // <-- ESTO ARREGLA EL ERROR VISUAL
+        color: Colors.transparent,
+        child: ListTile(
+          leading: Icon(icon, color: isSelected ? Colors.indigoAccent : Colors.white54),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white54,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
+          selected: isSelected,
+          selectedTileColor: Colors.indigoAccent.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onTap: () {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
         ),
-        selected: isSelected,
-        selectedTileColor: Colors.indigoAccent.withValues(alpha: 0.1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
       ),
     );
   }
