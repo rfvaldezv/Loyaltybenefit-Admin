@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
@@ -26,8 +28,7 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
       final response = await api.getProperties();
       if (mounted) {
         setState(() {
-          // Forzamos una nueva lista y filtramos los inactivos (borrados)
-          _properties = List<dynamic>.from(response.data).where((p) => p['isActive'] == true).toList();
+          _properties = List.from(response.data).where((p) => p['isActive'] == true).toList();
         });
       }
     } catch (e) {
@@ -91,9 +92,7 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
                             } else {
                               await api.createProperty(name: nameCtrl.text.trim(), code: codeCtrl.text.trim());
                             }
-                            
                             if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-                            
                           } catch (e) {
                             if (dialogContext.mounted) {
                               ScaffoldMessenger.of(dialogContext).showSnackBar(
@@ -115,7 +114,6 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
       },
     );
 
-    // REFRESCAMOS LA LISTA AQUÍ AFUERA DEL MODAL SI SE GUARDÓ
     if (resultado == true) {
       await _cargarPropiedades();
       if (mounted) {
@@ -126,13 +124,81 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
     }
   }
 
+  // --- MODAL DE QR ---
+  void _mostrarQr(dynamic propiedad) {
+    final String baseUrl = 'https://app.loyaltybenefit.com';
+    final String url = '$baseUrl/?property=${propiedad['id']}';
+
+    // Usamos el servicio de api.qrserver.com que devuelve un PNG directo sin CORS
+    final String qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$url';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: Text('QR: ${propiedad['name']}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                color: Colors.white,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(propiedad['name'], style: const TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    const Text('Escanea para acumular puntos', style: TextStyle(color: Colors.black54, fontSize: 14)),
+                    const SizedBox(height: 24),
+                    Image.network(qrImageUrl, width: 220, height: 220),
+                    const SizedBox(height: 24),
+                    const Text('Powered by Loyalty Benefit', style: TextStyle(color: Colors.black45, fontSize: 10)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Haz clic derecho sobre el QR o usa el botón de descargar.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Descarga directa desde el navegador
+                final anchor = html.document.createElement('a') as html.AnchorElement
+                  ..href = qrImageUrl
+                  ..target = '_blank'
+                  ..download = 'QR_${propiedad['name']}.png';
+                html.document.body!.children.add(anchor);
+                anchor.click();
+                html.document.body!.children.remove(anchor);
+              },
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Descargar PNG'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.indigoAccent),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- ELIMINAR ---
   Future<void> _eliminarPropiedad(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         title: const Text('¿Eliminar Propiedad?', style: TextStyle(color: Colors.white)),
-        content: const Text('El hotel se desactivará del sistema.', style: TextStyle(color: Colors.white70)),
+        content: const Text('Esta acción desactivará el hotel.', style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           ElevatedButton(
@@ -148,7 +214,7 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
       try {
         final api = ref.read(apiClientProvider);
         await api.deleteProperty(id);
-        await _cargarPropiedades(); // Recargamos la lista desde el servidor
+        await _cargarPropiedades();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('🗑️ Propiedad eliminada'), backgroundColor: Colors.green),
@@ -183,7 +249,7 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
       body: _isLoading && _properties.isEmpty
           ? const Center(child: CircularProgressIndicator(color: Colors.indigoAccent))
           : _properties.isEmpty
-              ? const Center(child: Text('No hay propiedades activas.', style: TextStyle(color: Colors.white54)))
+              ? const Center(child: Text('No hay propiedades.', style: TextStyle(color: Colors.white54)))
               : ListView.builder(
                   padding: const EdgeInsets.all(24),
                   itemCount: _properties.length,
@@ -207,6 +273,11 @@ class _PropertiesScreenState extends ConsumerState<PropertiesScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              icon: const Icon(Icons.qr_code, color: Colors.white, size: 20),
+                              tooltip: 'Ver QR',
+                              onPressed: () => _mostrarQr(prop),
+                            ),
                             IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blueAccent, size: 20),
                               onPressed: () => _mostrarModal(propiedad: prop),
